@@ -1,0 +1,6 @@
+[submodule "stb"]
+	path = stb
+	url = ./stb
+[submodule "glm"]
+	path = glm
+	url = ./glm

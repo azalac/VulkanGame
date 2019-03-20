@@ -30,3 +30,16 @@
 *.exe
 *.out
 *.app
+
+# Compiled Shaders
+*.frag
+*.vert
+
+# Build and project directories
+*build/*
+nbproject/*
+.vs/*
+old/*
+
+# Render doc Captures
+*.rdc
