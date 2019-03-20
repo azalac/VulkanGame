@@ -17,7 +17,7 @@
 #include "Window.hpp"
 
 const std::vector<std::string> validationLayers = {
-    "VK_LAYER_LUNARG_standard_validation"
+    //"VK_LAYER_LUNARG_standard_validation"
 	//,"VK_LAYER_RENDERDOC_Capture"
 };
 

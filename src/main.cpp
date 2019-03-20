@@ -141,7 +141,8 @@ int run() {
             planet1(controller, &globals),
             planet2(controller, &globals),
             planet3(controller, &globals),
-            enemyship(controller, &globals2);
+            enemyship(controller, &globals2),
+            menubutton(controller);
 
     shipbase.texture.texture = controller->getImageManager()->getImage("sprites/ShipBase.bmp");
     shipdetail.texture.texture = controller->getImageManager()->getImage("sprites/ShipDetail.bmp");
@@ -150,6 +151,7 @@ int run() {
     planet2.texture.texture = controller->getImageManager()->getImage("sprites/Planet2.bmp");
     planet3.texture.texture = controller->getImageManager()->getImage("sprites/Planet3.bmp");
     enemyship.texture.texture = controller->getImageManager()->getImage("sprites/EnemyShip.bmp");
+    menubutton.texture.texture = controller->getImageManager()->getImage("sprites/MenuButton.bmp");
 
 
     ShaderPrototype frag = {"shader/shader.frag.spv", vk::ShaderStageFlagBits::eFragment};
@@ -160,7 +162,9 @@ int run() {
 
 
 
-    std::vector<MaterialPrototype*> prototypes{ &shipbase.prototype, &shipdetail.prototype, &background.prototype, &planet1.prototype, &planet2.prototype, &planet3.prototype, &enemyship.prototype};
+    std::vector<MaterialPrototype*> prototypes{ &shipbase.prototype, &shipdetail.prototype,
+            &background.prototype, &planet1.prototype, &planet2.prototype, &planet3.prototype,
+            &enemyship.prototype, &menubutton.prototype};
 
     MaterialPrototypeHelpers::AddShaderToMany(prototypes, frag);
     MaterialPrototypeHelpers::AddShaderToMany(prototypes, vert);
@@ -194,6 +198,7 @@ int run() {
     planet2.finalize(controller);
     planet3.finalize(controller);
     enemyship.finalize(controller);
+    menubutton.finalize(controller);
 
     // </editor-fold>
 
@@ -222,6 +227,9 @@ int run() {
     GameObjectPrototype enemyproto(glm::vec2(0.9f, 0), glm::vec2(0.2f, 0.2f), 0, pcproto.id);
     enemyproto.addRenderer(0, &enemyship, enemyship.material, &indices);
 
+    GameObjectPrototype menubuttonproto(glm::vec2(0, 0), glm::vec2(0.3f, 0.1f), 0, pcproto.id);
+    menubuttonproto.addRenderer(0, &menubutton, menubutton.material, &indices);
+    
     // </editor-fold>
 
     std::vector<ObjectHandle> planets;
@@ -233,7 +241,9 @@ int run() {
 
     ObjectHandle shiphandle = scene.addObject(shipProto, SHIP_LAYER),
             enemyhandle = scene.addObject(enemyproto, SHIP_LAYER),
-            backgroundhandle = scene.addObject(backgroundProto, BACKGROUND_LAYER);
+            menubuttonhandle = scene.addObject(menubuttonproto, 4);
+            
+    scene.addObject(backgroundProto, BACKGROUND_LAYER);
 
 
     CoordinateConverter spaceconverter(window);
@@ -243,23 +253,31 @@ int run() {
     
     Event collide_evt = scene.createEventId();
     Event menuclose_evt = scene.createEventId();
+    Event mouseclick_evt = scene.createEventId();
 
     std::shared_ptr<PlayerControlledShipDecorator> shipcontroller(new PlayerControlledShipDecorator(&spaceconverter, pcs_evt, collide_evt, menuclose_evt));
     std::shared_ptr<PlanetCollidable> shipplanetcollider(new PlanetCollidable(&planets, collide_evt));
+    std::shared_ptr<MenuClickHandler> mouseclick(new MenuClickHandler(mouseclick_evt));
+    std::shared_ptr<AIControlledShipDecorator> aicontroller(new AIControlledShipDecorator(pcs_evt, shiphandle));
+    std::shared_ptr<MenuButton> menubuttoncontroller(new MenuButton(mouseclick_evt, collide_evt, menuclose_evt, 0));
 
-    DecoratorHandle shipctrlhandle = scene.addDecorator(shiphandle, shipcontroller);
+    scene.addDecorator(shiphandle, shipcontroller);
 
-    DecoratorHandle shipcollidehandle = scene.addDecorator(shiphandle, shipplanetcollider);
+    scene.addDecorator(shiphandle, shipplanetcollider);
+    
+    scene.addDecorator(mouseclick);
+    
+    scene.addDecorator(menubuttonhandle, menubuttoncontroller);
 
     input.addMouseHandler(GLFW_MOUSE_BUTTON_1, shipcontroller.get());
 
-    std::shared_ptr<AIControlledShipDecorator> aicontroller(new AIControlledShipDecorator(pcs_evt, shiphandle));
+    input.addMouseHandler(GLFW_MOUSE_BUTTON_1, mouseclick.get());
 
     scene.addDecorator(enemyhandle, aicontroller);
 
 	Font font("cmunrm.ttf", 12);
 
-	TextImage text(*controller->getDevice(), shipdetail.material->getSampler(0), &font, "Hello World");
+	//TextImage text(*controller->getDevice(), shipdetail.material->getSampler(0), &font, "Hello World");
 
     auto start = std::chrono::high_resolution_clock::now();
 

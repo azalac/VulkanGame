@@ -216,7 +216,7 @@ private:
 
     CoordinateConverter * converter;
 
-    Event onplanetcollide;
+    Event onmenuopen;
     Event onmenuclose;
 
 public:
@@ -224,20 +224,20 @@ public:
     PlayerControlledShipDecorator(
             CoordinateConverter * converter,
             Event playerstatechange = EventManager::NULL_EVENT,
-            Event onplanetcollide = EventManager::NULL_EVENT,
+            Event onmenuopen = EventManager::NULL_EVENT,
             Event onmenuclose = EventManager::NULL_EVENT
             ) : ShipControllerDecorator(playerstatechange), converter(converter),
-    onplanetcollide(onplanetcollide), onmenuclose(onmenuclose) {
+    onmenuopen(onmenuopen), onmenuclose(onmenuclose) {
 
     }
 
     virtual void RegisterHooks(EventManager * events) override {
-        events->addHandler(onplanetcollide, this);
+        events->addHandler(onmenuopen, this);
         events->addHandler(onmenuclose, this);
     }
 
     virtual void OnEvent(EventManager * manager, Event id, const std::shared_ptr<void> arguments) override {
-        if (id == onplanetcollide) {
+        if (id == onmenuopen) {
             setPaused(true);
         }
         if (id == onmenuclose) {

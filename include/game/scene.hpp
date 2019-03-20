@@ -40,7 +40,7 @@ public:
     }
 
     void updateView(void) {
-        float w = (float)window->getWidth(), h = (float)window->getHeight();
+        float w = (float) window->getWidth(), h = (float) window->getHeight();
 
         float x = w - h;
 
@@ -206,7 +206,7 @@ public:
     void deltaRotation(float theta) {
         rotation += theta;
 
-        float tau = (float)(2 * M_PI);
+        float tau = (float) (2 * M_PI);
 
         while (rotation < 0) {
             rotation += tau;
@@ -339,9 +339,22 @@ class Scene;
 class ObjectDecorator {
 public:
 
-    virtual void RegisterHooks(EventManager * events) {}
+    virtual void RegisterHooks(EventManager * events) {
 
-	virtual void Apply(Scene * scene, ObjectHandle object, double deltat) = 0;
+    }
+
+    virtual void Apply(Scene * scene, ObjectHandle object, double deltat) = 0;
+
+};
+
+class SceneDecorator {
+public:
+
+    virtual void RegisterHooks(EventManager * events) {
+
+    }
+
+    virtual void Apply(Scene * scene, double deltat) = 0;
 
 };
 
@@ -365,10 +378,11 @@ public:
 class Scene {
 private:
 
+    template<class T>
     struct DecoratorInfo {
         DecoratorHandle id;
 
-        std::shared_ptr<ObjectDecorator> decorator;
+        std::shared_ptr<T> decorator;
     };
 
     struct ObjectInfo {
@@ -376,12 +390,15 @@ private:
         ObjectHandle id;
         std::shared_ptr<GameObject> object;
 
-        std::list<DecoratorInfo> decorators;
-        std::map<DecoratorHandle, DecoratorInfo*> decoratorsbyid;
+        std::list<DecoratorInfo<ObjectDecorator>> decorators;
+        std::map<DecoratorHandle, DecoratorInfo<ObjectDecorator>*> decoratorsbyid;
     };
 
     std::list<ObjectInfo> objects;
     std::map<ObjectHandle, ObjectInfo*> objectsbyid;
+
+    std::list<DecoratorInfo<SceneDecorator>> decorators;
+    std::map<DecoratorHandle, DecoratorInfo<SceneDecorator>*> decoratorsbyid;
 
     EventManager eventmanager;
 
@@ -416,7 +433,7 @@ public:
             throw std::runtime_error("Invalid object handle");
         }
 
-        DecoratorInfo info = {nextdecorator++, decorator};
+        DecoratorInfo<ObjectDecorator> info = {nextdecorator++, decorator};
 
         iter->decorators.push_back(info);
         iter->decoratorsbyid[info.id] = &iter->decorators.back();
@@ -428,6 +445,18 @@ public:
 
     DecoratorHandle addDecorator(ObjectHandle owner, DecoratorConstructor * builder) {
         return addDecorator(owner, std::shared_ptr<ObjectDecorator>(builder->create()));
+    }
+
+    DecoratorHandle addDecorator(std::shared_ptr<SceneDecorator> decorator) {
+
+        DecoratorInfo<SceneDecorator> info = {nextdecorator++, decorator};
+
+        decorators.push_back(info);
+        decoratorsbyid[info.id] = &decorators.back();
+
+        decorator->RegisterHooks(&eventmanager);
+
+        return info.id;
     }
 
     bool removeObject(ObjectHandle handle) {
@@ -505,7 +534,11 @@ public:
 
             object.object->update(frame, converter);
         }
-
+        
+        for (auto & decorator : decorators) {
+            decorator.decorator->Apply(this, deltat);
+        }
+        
         eventmanager.handleEvents();
     }
 

@@ -21,14 +21,14 @@ else()
 	set(VULKAN_SDK "C:/VulkanSDK/1.1.97.0")
 endif()
 
-if(NOT ${USE_INSTALLED_VKSDK})
+if(${USE_INSTALLED_VKSDK})
 	if(NOT EXISTS "${VULKAN_SDK}")
 		message(FATAL_ERROR "ERROR: Specified Vulkan SDK doesn't exist! (${VULKAN_SDK})'")
 	endif()
 endif()
 
 #uncomment these if required libraries not installed, but have been built from source
-if(NOT ${USE_INSTALLED_VKSDK})
+if(${USE_INSTALLED_VKSDK})
 	set(VULKAN_INCLUDE "${VULKAN_SDK}/Include")
 	set(VULKAN_BINARIES "${VULKAN_SDK}/Lib32")
 endif()
@@ -124,6 +124,7 @@ endif()
 
 ###### TINYXML2 LIBRARIES + HEADERS
 
+if(FALSE)
 add_library(tinyxml2 STATIC IMPORTED)
 
 find_library(TXML_LIBRARY NAMES tinyxml2d libtinyxml2d)
@@ -150,6 +151,7 @@ if(NOT TXML_HEADER)
     else()
 		message(FATAL_ERROR "tinyxml2 not installed and TXML_INCLUDE not specified!")
     endif()
+endif()
 endif()
 
 ###### GLM HEADERS
@@ -183,7 +185,7 @@ endif()
 #add the required libraries
 target_link_libraries(vulkan_test PUBLIC vulkan)
 target_link_libraries(vulkan_test PUBLIC glfw3)
-target_link_libraries(vulkan_test PUBLIC tinyxml2)
+#target_link_libraries(vulkan_test PUBLIC tinyxml2)
 
 
 
