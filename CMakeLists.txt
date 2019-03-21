@@ -6,6 +6,7 @@ set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
 
 option(USE_INSTALLED_VKSDK "Use Installed Vulkan SDK" OFF)
+option(USE_DYNAMIC_GLFW "Use GLFW DLL and Loader" OFF)
 
 # enables debug symbols
 if(MSVC)
@@ -28,13 +29,11 @@ if(${USE_INSTALLED_VKSDK})
 endif()
 
 #uncomment these if required libraries not installed, but have been built from source
-if(${USE_INSTALLED_VKSDK})
-	set(VULKAN_INCLUDE "${VULKAN_SDK}/Include")
-	set(VULKAN_BINARIES "${VULKAN_SDK}/Lib32")
-endif()
+set(VULKAN_INCLUDE "${VULKAN_SDK}/Include")
+set(VULKAN_BINARIES "${VULKAN_SDK}/Lib32")
 
-set(GLFW_INCLUDE "${CMAKE_SOURCE_DIR}/../glfw/include")
-set(GLFW_BINARIES "${CMAKE_SOURCE_DIR}/../glfw/glfw-build/src/Debug")
+set(GLFW_INCLUDE "D:/Program Files (x86)/GLFW/include")
+set(GLFW_BINARIES "D:/Program Files (x86)/GLFW/lib")
 
 set(TXML_INCLUDE "${CMAKE_SOURCE_DIR}/tinyxml2/")
 set(TXML_BINARIES "${CMAKE_SOURCE_DIR}/tinyxml2/build/Debug")
@@ -62,20 +61,25 @@ endif()
 
 add_library(glfw3 STATIC IMPORTED)
 
-find_library(GLFW_LIBRARY NAMES glfw3dll.lib libglfw.so)
+if(${USE_DYNAMIC_GLFW})
+	list(APPEND GLFW_LIBRARY_NAMES "libglfw3" "glfw3dll" "libglfw")
+else()
+	list(APPEND GLFW_LIBRARY_NAMES "glfw3")
+endif()
+
+find_library(GLFW_LIBRARY NAMES ${GLFW_LIBRARY_NAMES} HINTS ${GLFW_BINARIES})
 
 if(NOT GLFW_LIBRARY)
-    if(GLFW_BINARIES)
-		message("Installed GLFW not found, using provided binaries")
-		set(GLFW_LIBRARY "${GLFW_BINARIES}/glfw3dll.lib")
-		# when using custom glfw location, copy its glfw3.dll to the binary location
-		add_custom_command(TARGET vulkan_test POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy "${GLFW_BINARIES}/glfw3.dll" "$<TARGET_FILE_DIR:vulkan_test>"
-		)
-    else()
-		message(FATAL_ERROR "GLFW library not installed and GLFW_BINARIES not specified!")
-    endif()
+	message(FATAL_ERROR "GLFW library not installed and GLFW_BINARIES not specified!")
 endif()
+
+if(${USE_DYNAMIC_GLFW})
+	# when using dynamic glfw, copy its glfw3.dll to the binary location
+	add_custom_command(TARGET vulkan_test POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy "${GLFW_BINARIES}/glfw3.dll" "$<TARGET_FILE_DIR:vulkan_test>"
+	)
+endif()
+
 
 set_property(TARGET glfw3 PROPERTY IMPORTED_LOCATION "${GLFW_LIBRARY}")
 
@@ -96,15 +100,10 @@ endif()
 
 add_library(vulkan STATIC IMPORTED)
 
-find_library(VULKAN_LIBRARY NAMES vulkan libvulkan "vulkan-1")
+find_library(VULKAN_LIBRARY NAMES vulkan libvulkan "vulkan-1" HINTS ${VULKAN_BINARIES})
 
 if(NOT VULKAN_LIBRARY)
-    if(VULKAN_BINARIES)
-		set(VULKAN_LIBRARY "${VULKAN_BINARIES}/vulkan-1.lib")
-		message("Installed Vulkan not found, using provided binaries")
-    else()
-		message(FATAL_ERROR "Vulkan loader not installed and VULKAN_BINARIES not specified!")
-    endif()
+	message(FATAL_ERROR "Vulkan loader not installed and VULKAN_BINARIES not specified!")
 endif()
 
 set_property(TARGET vulkan PROPERTY IMPORTED_LOCATION "${VULKAN_LIBRARY}")
