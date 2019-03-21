@@ -28,13 +28,11 @@ if(${USE_INSTALLED_VKSDK})
 endif()
 
 #uncomment these if required libraries not installed, but have been built from source
-if(${USE_INSTALLED_VKSDK})
-	set(VULKAN_INCLUDE "${VULKAN_SDK}/Include")
-	set(VULKAN_BINARIES "${VULKAN_SDK}/Lib32")
-endif()
+set(VULKAN_INCLUDE "${VULKAN_SDK}/Include")
+set(VULKAN_BINARIES "${VULKAN_SDK}/Lib32")
 
-set(GLFW_INCLUDE "${CMAKE_SOURCE_DIR}/../glfw/include")
-set(GLFW_BINARIES "${CMAKE_SOURCE_DIR}/../glfw/glfw-build/src/Debug")
+set(GLFW_INCLUDE "C:/Program Files (x86)/GLFW/include")
+set(GLFW_BINARIES "C:/Program Files (x86)/GLFW/lib")
 
 set(TXML_INCLUDE "${CMAKE_SOURCE_DIR}/tinyxml2/")
 set(TXML_BINARIES "${CMAKE_SOURCE_DIR}/tinyxml2/build/Debug")
@@ -62,19 +60,20 @@ endif()
 
 add_library(glfw3 STATIC IMPORTED)
 
-find_library(GLFW_LIBRARY NAMES glfw3dll.lib libglfw.so)
+unset(GLFW_LIBRARY)
+find_library(GLFW_LIBRARY NAMES glfw3dll.lib libglfw.so HINTS ${GLFW_BINARIES})
 
 if(NOT GLFW_LIBRARY)
-    if(GLFW_BINARIES)
-		message("Installed GLFW not found, using provided binaries")
-		set(GLFW_LIBRARY "${GLFW_BINARIES}/glfw3dll.lib")
-		# when using custom glfw location, copy its glfw3.dll to the binary location
-		add_custom_command(TARGET vulkan_test POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy "${GLFW_BINARIES}/glfw3.dll" "$<TARGET_FILE_DIR:vulkan_test>"
-		)
-    else()
-		message(FATAL_ERROR "GLFW library not installed and GLFW_BINARIES not specified!")
-    endif()
+	message(FATAL_ERROR "GLFW library not installed!")
+endif()
+
+get_filename_component(glfw_static ${GLFW_LIBRARY} NAME)
+
+# when linking to the loader, copy its glfw3.dll to the binary location
+if("${glfw_static}" STREQUAL "glfw3dll.lib")
+	add_custom_command(TARGET vulkan_test POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy "${GLFW_BINARIES}/glfw3.dll" "$<TARGET_FILE_DIR:vulkan_test>"
+	)
 endif()
 
 set_property(TARGET glfw3 PROPERTY IMPORTED_LOCATION "${GLFW_LIBRARY}")
@@ -96,15 +95,11 @@ endif()
 
 add_library(vulkan STATIC IMPORTED)
 
-find_library(VULKAN_LIBRARY NAMES vulkan libvulkan "vulkan-1")
+unset(VULKAN_LIBRARY)
+find_library(VULKAN_LIBRARY NAMES vulkan libvulkan "vulkan-1" HINTS ${VULKAN_BINARIES})
 
 if(NOT VULKAN_LIBRARY)
-    if(VULKAN_BINARIES)
-		set(VULKAN_LIBRARY "${VULKAN_BINARIES}/vulkan-1.lib")
-		message("Installed Vulkan not found, using provided binaries")
-    else()
-		message(FATAL_ERROR "Vulkan loader not installed and VULKAN_BINARIES not specified!")
-    endif()
+	message(FATAL_ERROR "Vulkan loader not installed and VULKAN_BINARIES not specified!")
 endif()
 
 set_property(TARGET vulkan PROPERTY IMPORTED_LOCATION "${VULKAN_LIBRARY}")
