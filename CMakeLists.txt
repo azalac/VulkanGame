@@ -73,13 +73,14 @@ if(NOT GLFW_LIBRARY)
 	message(FATAL_ERROR "GLFW library not installed and GLFW_BINARIES not specified!")
 endif()
 
-if(${USE_DYNAMIC_GLFW})
-	# when using dynamic glfw, copy its glfw3.dll to the binary location
+get_filename_component(glfw_static ${GLFW_LIBRARY} NAME)
+
+# when linking to the loader, copy its glfw3.dll to the binary location
+if("${glfw_static}" STREQUAL "glfw3dll.lib")
 	add_custom_command(TARGET vulkan_test POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy "${GLFW_BINARIES}/glfw3.dll" "$<TARGET_FILE_DIR:vulkan_test>"
 	)
 endif()
-
 
 set_property(TARGET glfw3 PROPERTY IMPORTED_LOCATION "${GLFW_LIBRARY}")
 
@@ -100,6 +101,7 @@ endif()
 
 add_library(vulkan STATIC IMPORTED)
 
+unset(VULKAN_LIBRARY)
 find_library(VULKAN_LIBRARY NAMES vulkan libvulkan "vulkan-1" HINTS ${VULKAN_BINARIES})
 
 if(NOT VULKAN_LIBRARY)

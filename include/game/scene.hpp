@@ -25,7 +25,6 @@
 #include <math.h>
 
 // converts from window space to a square in the center
-
 class CoordinateConverter {
 private:
 
@@ -276,6 +275,8 @@ public:
 using ObjectHandle = size_t;
 using DecoratorHandle = size_t;
 using Event = size_t;
+using EventIn = Event;
+using EventOut = Event;
 
 class EventManager;
 
@@ -365,16 +366,6 @@ public:
 
 };
 
-template<typename T>
-class SimpleDecoratorConstructor : public DecoratorConstructor {
-public:
-
-    virtual std::shared_ptr<ObjectDecorator> create() override {
-        return std::shared_ptr<ObjectDecorator>(new T());
-    }
-
-};
-
 class Scene {
 private:
 
@@ -447,6 +438,10 @@ public:
         return addDecorator(owner, std::shared_ptr<ObjectDecorator>(builder->create()));
     }
 
+	DecoratorHandle addDecorator(ObjectHandle owner, ObjectDecorator * decorator) {
+		return addDecorator(owner, std::shared_ptr<ObjectDecorator>(decorator));
+	}
+
     DecoratorHandle addDecorator(std::shared_ptr<SceneDecorator> decorator) {
 
         DecoratorInfo<SceneDecorator> info = {nextdecorator++, decorator};
@@ -458,6 +453,10 @@ public:
 
         return info.id;
     }
+
+	DecoratorHandle addDecorator(SceneDecorator * decorator) {
+		return addDecorator(std::shared_ptr<SceneDecorator>(decorator));
+	}
 
     bool removeObject(ObjectHandle handle) {
         auto iter = objects.begin();
@@ -518,7 +517,13 @@ public:
 
     void dispatchEvent(Event id, std::shared_ptr<void> arguments) {
         eventmanager.enqueueEvent(id, arguments);
+		printf("Dispatching event %d\n", id);
     }
+
+	template<typename T>
+	void dispatchEvent(Event id, const T & argument) {
+		eventmanager.enqueueEvent(id, std::shared_ptr<void>(new T(argument)));
+	}
 
     Event createEventId() {
         return eventmanager.getNewEventId();
