@@ -27,6 +27,24 @@ struct ChromaKey {
     float epsilon1, epsilon2;
 };
 
+struct Events {
+	Event mouseclick;
+	Event playerstatechange;
+	Event playercollide;
+	Event playerhit, gameover;
+	Event menubutton;
+	Event deltaenergy;
+	Event deltascience;
+
+	Events(Scene * scene):
+	mouseclick(scene->createEventId()), playerstatechange(scene->createEventId()),
+		playercollide(scene->createEventId()), playerhit(scene->createEventId()),
+		gameover(scene->createEventId()), menubutton(scene->createEventId()),
+		deltaenergy(scene->createEventId()), deltascience(scene->createEventId()) {
+		
+	}
+};
+
 struct MaterialInfo : public MaterialRendererBuilder {
     TextureSamplerPrototype texture;
     MaterialPrototype prototype;
@@ -248,34 +266,23 @@ int run() {
 
     CoordinateConverter spaceconverter(window);
 
-    // player change state event
-    Event pcs_evt = scene.createEventId();
-    
-    Event collide_evt = scene.createEventId();
-    Event menuclose_evt = scene.createEventId();
-    Event mouseclick_evt = scene.createEventId();
+	Events events(&scene);
 
-    std::shared_ptr<PlayerControlledShipDecorator> shipcontroller(new PlayerControlledShipDecorator(&spaceconverter, pcs_evt, collide_evt, menuclose_evt));
-    std::shared_ptr<PlanetCollidable> shipplanetcollider(new PlanetCollidable(&planets, collide_evt));
-    std::shared_ptr<MenuClickHandler> mouseclick(new MenuClickHandler(mouseclick_evt));
-    std::shared_ptr<AIControlledShipDecorator> aicontroller(new AIControlledShipDecorator(pcs_evt, shiphandle));
-    std::shared_ptr<MenuButton> menubuttoncontroller(new MenuButton(mouseclick_evt, collide_evt, menuclose_evt, 0));
+    auto shipcontroller = new PlayerControlledShipDecorator(&spaceconverter, events.playerstatechange, events.playercollide, events.menubutton, events.mouseclick);
+	auto mouseclick = new ClickEventDispatcher(events.mouseclick, &spaceconverter);
 
     scene.addDecorator(shiphandle, shipcontroller);
 
-    scene.addDecorator(shiphandle, shipplanetcollider);
+    scene.addDecorator(shiphandle, new PlanetCollidable(&planets, events.playercollide));
     
+    scene.addDecorator(enemyhandle, new AIControlledShipDecorator(events.playerstatechange, shiphandle));
+
+    scene.addDecorator(menubuttonhandle, new MenuButton(events.mouseclick, events.playercollide, events.menubutton, 0));
+
     scene.addDecorator(mouseclick);
-    
-    scene.addDecorator(menubuttonhandle, menubuttoncontroller);
+    input.addMouseHandler(GLFW_MOUSE_BUTTON_1, mouseclick);
 
-    input.addMouseHandler(GLFW_MOUSE_BUTTON_1, shipcontroller.get());
-
-    input.addMouseHandler(GLFW_MOUSE_BUTTON_1, mouseclick.get());
-
-    scene.addDecorator(enemyhandle, aicontroller);
-
-	Font font("cmunrm.ttf", 12);
+	//Font font("cmunrm.ttf", 12);
 
 	//TextImage text(*controller->getDevice(), shipdetail.material->getSampler(0), &font, "Hello World");
 

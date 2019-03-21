@@ -392,9 +392,11 @@ private:
 			info->descriptorManager->addDescriptor(buffer.second.get());
 		}
 
-		for (auto & gbuffer : *info->gbuffers) {
-			info->updater.addUpdatable(gbuffer.second.get());
-			info->descriptorManager->addDescriptor(gbuffer.second.get());
+		if (info->gbuffers) {
+			for (auto & gbuffer : *info->gbuffers) {
+				info->updater.addUpdatable(gbuffer.second.get());
+				info->descriptorManager->addDescriptor(gbuffer.second.get());
+			}
 		}
 
 		for (auto & vertexbuffer : info->vertexDescriptors) {

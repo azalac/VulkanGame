@@ -184,8 +184,6 @@ void TextureSampler::update(void* data) {
         throw std::runtime_error("Image cannot be null");
     }
 
-	printf("Updating texture\n");
-
     vk::DescriptorImageInfo imageInfo(sampler, image->getView(), vk::ImageLayout::eShaderReadOnlyOptimal);
 
     vk::WriteDescriptorSet descWrite;

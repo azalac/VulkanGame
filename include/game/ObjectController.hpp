@@ -18,13 +18,13 @@
 
 #include <set>
 
-template<typename T>
-static bool within(T test, T center, T deviation) {
+template<typename A, typename B, typename C>
+static bool within(A test, B center, C deviation) {
     return test >= center - deviation && test <= center + deviation;
 }
 
-template<typename T>
-static bool within2(T test, T lower, T upper) {
+template<typename A, typename B, typename C>
+static bool within2(A test, B lower, C upper) {
     return test >= lower && test <= upper;
 }
 
@@ -77,8 +77,9 @@ enum class PlayerState {
 struct ShipStateChangeArguments {
     void * sender;
     const PlayerState state;
+	bool paused;
 
-    ShipStateChangeArguments(void * sender, const PlayerState state) :
+    ShipStateChangeArguments(void * sender, const PlayerState state, bool paused) :
     sender(sender), state(state) {
 
     }
@@ -163,11 +164,15 @@ public:
         }
 
         if (statechanged) {
-            scene->dispatchEvent(playerstatechange, std::shared_ptr<ShipStateChangeArguments>(new ShipStateChangeArguments(this, paused ? PlayerState::ePaused : state)));
+            scene->dispatchEvent(playerstatechange, ShipStateChangeArguments(this, state, paused));
             statechanged = false;
         }
 
     }
+
+	bool isPaused() {
+		return paused;
+	}
 
 protected:
 
@@ -211,61 +216,41 @@ private:
 
 };
 
-class PlayerControlledShipDecorator : public ShipControllerDecorator, public GLFWMouseDelegate, public EventHandler {
+class PlayerControlledShipDecorator : public ShipControllerDecorator, public EventHandler {
 private:
 
     CoordinateConverter * converter;
 
-    Event onmenuopen;
-    Event onmenuclose;
+    EventIn onpause, onunpause, onclick;
 
 public:
 
     PlayerControlledShipDecorator(
             CoordinateConverter * converter,
-            Event playerstatechange = EventManager::NULL_EVENT,
-            Event onmenuopen = EventManager::NULL_EVENT,
-            Event onmenuclose = EventManager::NULL_EVENT
+            EventOut playerstatechange = EventManager::NULL_EVENT,
+            EventIn onpause = EventManager::NULL_EVENT,
+            EventIn onunpause = EventManager::NULL_EVENT,
+			EventIn onclick = EventManager::NULL_EVENT
             ) : ShipControllerDecorator(playerstatechange), converter(converter),
-    onmenuopen(onmenuopen), onmenuclose(onmenuclose) {
+		onpause(onpause), onunpause(onunpause), onclick(onclick) {
 
     }
 
     virtual void RegisterHooks(EventManager * events) override {
-        events->addHandler(onmenuopen, this);
-        events->addHandler(onmenuclose, this);
+        events->addHandler(onpause, this);
+        events->addHandler(onunpause, this);
     }
 
     virtual void OnEvent(EventManager * manager, Event id, const std::shared_ptr<void> arguments) override {
-        if (id == onmenuopen) {
+        if (id == onpause) {
             setPaused(true);
         }
-        if (id == onmenuclose) {
+        if (id == onunpause) {
             setPaused(false);
         }
-    }
-
-    virtual void MouseButton(InputHandler * handler, int button, int action,
-            int modifiers, double x, double y) override {
-
-        if (action == GLFW_RELEASE) {
-            return;
-        }
-
-        converter->updateView();
-        glm::vec2 s = converter->getScale();
-
-        glm::vec2 target = glm::vec2(x, y) / s;
-
-        target.x = clamp(target.x, -s.x, s.x);
-        target.y = clamp(target.y, -s.y, s.y);
-
-        setTarget(target);
-    }
-
-    template<typename T>
-    static T clamp(T value, T lower, T upper) {
-        return value < lower ? lower : (value > upper ? upper : value);
+		if (id == onclick && !isPaused()) {
+			setTarget(*reinterpret_cast<glm::vec2*>(arguments.get()));
+		}
     }
 
 };
@@ -280,7 +265,7 @@ private:
 
 public:
 
-    AIControlledShipDecorator(Event playerstatechange, ObjectHandle player) {
+    AIControlledShipDecorator(EventIn playerstatechange, ObjectHandle player) {
         this->playerstatechange = playerstatechange;
         this->player = player;
     }
@@ -303,6 +288,8 @@ public:
         if (id == playerstatechange) {
             const ShipStateChangeArguments * state = reinterpret_cast<ShipStateChangeArguments*> (arguments.get());
             playerismoving = state->state == PlayerState::eMoving;
+
+			setPaused(state->paused);
 
             if (!playerismoving) {
                 setState(PlayerState::eIdle);
@@ -341,7 +328,7 @@ public:
 
             // if the distance between this object and the planet is within the planet's boundaries, they're colliding
             if (glm::distance((*scene)[handle].getPosition(), (*scene)[object].getPosition()) < glm::length((*scene)[handle].getSize()) / 2) {
-                scene->dispatchEvent(onplanetcollide, std::shared_ptr<void>(new PlanetCollideEventArguments{this, handle, object}));
+				scene->dispatchEvent(onplanetcollide, PlanetCollideEventArguments{ this, handle, object });
                 collidedplanets.insert(handle);
             }
         }
@@ -357,6 +344,43 @@ public:
             collidedplanets.clear();
         }
     }
+
+};
+
+class ClickEventDispatcher : public GLFWMouseDelegate, public SceneDecorator {
+private:
+
+	CoordinateConverter * converter;
+
+	std::list<glm::vec2> clicks;
+
+	EventOut onclick;
+
+public:
+
+	ClickEventDispatcher(EventOut onclick, CoordinateConverter * converter):
+	onclick(onclick), converter(converter) {
+
+	}
+
+	virtual void Apply(Scene * scene, double deltat) override {
+		for (auto & click : clicks) {
+			scene->dispatchEvent(onclick, click);
+		}
+		clicks.clear();
+	}
+
+	virtual void MouseButton(InputHandler * handler, int button, int action, int modifiers, double x, double y) override {
+		if (action == GLFW_PRESS) {
+			return;
+		}
+
+		glm::vec2 p = glm::vec2(x, y) / converter->getScale();
+
+		if (within2(p.x, -1, 1) && within2(p.y, -1, 1)) {
+			clicks.push_back(p);
+		}
+	}
 
 };
 

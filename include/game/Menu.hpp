@@ -16,36 +16,6 @@
 
 #include "scene.hpp"
 
-class MenuClickHandler : public GLFWMouseDelegate, public SceneDecorator {
-private:
-
-    Event mouseclick;
-    CoordinateConverter * converter;
-
-    std::list<glm::vec2> clicks;
-
-public:
-
-    MenuClickHandler(Event mouseclick) {
-        this->mouseclick = mouseclick;
-    }
-
-    void Apply(Scene* scene, double deltat) override {
-
-        // for every click, dispatch an event
-        while (clicks.begin() != clicks.end()) {
-            scene->dispatchEvent(mouseclick, std::shared_ptr<glm::vec2>(new glm::vec2(clicks.front())));
-            clicks.pop_front();
-        }
-
-    }
-
-    virtual void MouseButton(InputHandler * handler, int button, int action,
-            int modifiers, double x, double y) override {
-        clicks.push_back(glm::vec2(x, y) / converter->getScale());
-    }
-};
-
 class MenuObject : public ObjectDecorator, public EventHandler {
 private:
     Event showmenu;
