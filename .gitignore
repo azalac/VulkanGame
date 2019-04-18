@@ -32,8 +32,7 @@
 *.app
 
 # Compiled Shaders
-*.frag
-*.vert
+*.spv
 
 # Build and project directories
 *build/*
