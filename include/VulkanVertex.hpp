@@ -21,6 +21,7 @@
 #include <array>
 #include <glm/glm.hpp>
 
+// A helper class for the various glm vector to vulkan vector formats
 class GLMVectorFormats {
 public:
     static constexpr vk::Format
@@ -30,6 +31,7 @@ public:
             VEC4 = vk::Format::eR32G32B32A32Sfloat;
 };
 
+// Represents a vertex descriptor and binding
 class VulkanVertexDescriptor {
 protected:
 
@@ -51,6 +53,7 @@ public:
     virtual std::vector<vk::VertexInputAttributeDescription> getAttributes(void) = 0;
 };
 
+// Controls the pipeline vertex input state
 class VulkanVertexInputState {
 public:
 
@@ -82,6 +85,7 @@ public:
 
 };
 
+// Represents a single vertex
 struct VulkanVertexObject {
     glm::vec2 position;
     glm::vec3 color;
@@ -103,6 +107,7 @@ struct VulkanVertexObject {
     }
 };
 
+// Represents a Vertex Buffer of VulkanVertexObjects
 template<class T>
 class VulkanVertexBuffer : public VulkanObjectBuffer<T>, public VulkanVertexDescriptor {
 public:
@@ -119,6 +124,7 @@ public:
 
 };
 
+// Represents an index buffer
 class VulkanIndexBuffer : public VulkanObjectBuffer<uint16_t> {
 public:
 

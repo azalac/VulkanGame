@@ -2,6 +2,7 @@
 
 #include "VulkanDevice.hpp"
 
+// Controls the depth buffer - not currently used but will be in the future
 class VulkanDepthBuffer {
 private:
 

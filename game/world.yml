@@ -1,0 +1,11 @@
+## YAML Template.
+---
+constants:
+    -
+        name: cell size
+        type: "vfloat"
+        value: [0.2, 0.2]
+    -
+        name: planet speed range
+        type: "vfloat"
+        value: [0.025, 0.1]

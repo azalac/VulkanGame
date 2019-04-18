@@ -6,10 +6,13 @@
 #include "VulkanRenderPass.hpp"
 
 template<class T>
-constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
+constexpr const T clamp(const T& v, const T& lo, const T& hi) {
     return (v < lo) ? lo : (hi < v) ? hi : v;
 }
 
+// Represents the swapchain
+// Creates a double buffered swapchain by default
+// Also controls the frame buffers
 class VulkanSwapchain {
 private:
 
@@ -17,7 +20,7 @@ private:
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::ImageView> imageViews;
 
-	std::vector<vk::Framebuffer> frameBuffers;
+    std::vector<vk::Framebuffer> frameBuffers;
 
     vk::Extent2D extent;
 
@@ -33,18 +36,18 @@ public:
 
         createImageViews(device);
 
-		createFrameBuffers(device, renderPass);
+        createFrameBuffers(device, renderPass);
     }
 
     void destroy(VulkanDevice & device) {
 
         device->destroySwapchainKHR(swapChain.get());
-		swapChain.release();
+        swapChain.release();
 
-		for (auto & frame : frameBuffers) {
-			device->destroyFramebuffer(frame);
-			frame = nullptr;
-		}
+        for (auto & frame : frameBuffers) {
+            device->destroyFramebuffer(frame);
+            frame = nullptr;
+        }
 
     }
 
@@ -61,7 +64,7 @@ public:
 
         createImageViews(device);
 
-		createFrameBuffers(device, renderPass);
+        createFrameBuffers(device, renderPass);
     }
 
     size_t frameCount() {
@@ -84,9 +87,9 @@ public:
         return swapChain;
     }
 
-	vk::Framebuffer & getFrame(int i) {
-		return frameBuffers[i];
-	}
+    vk::Framebuffer & getFrame(int i) {
+        return frameBuffers[i];
+    }
 
 private:
 
@@ -141,9 +144,9 @@ private:
             swapChainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
         }
 
-		if (swapChain) {
-			device->destroySwapchainKHR(swapChain.get());
-		}
+        if (swapChain) {
+            device->destroySwapchainKHR(swapChain.get());
+        }
 
         swapChain = device->createSwapchainKHRUnique(swapChainCreateInfo);
 
@@ -169,20 +172,20 @@ private:
         }
     }
 
-	void createFrameBuffers(VulkanDevice & device, VulkanRenderPass & renderPass) {
-		frameBuffers.resize(imageViews.size());
-		vk::FramebufferCreateInfo createInfo(vk::FramebufferCreateFlags(), renderPass.getRenderPass(), 1, nullptr, extent.width, extent.height, 1);
+    void createFrameBuffers(VulkanDevice & device, VulkanRenderPass & renderPass) {
+        frameBuffers.resize(imageViews.size());
+        vk::FramebufferCreateInfo createInfo(vk::FramebufferCreateFlags(), renderPass.getRenderPass(), 1, nullptr, extent.width, extent.height, 1);
 
-		for (size_t i = 0; i < imageViews.size(); i++) {
-			if (frameBuffers[i]) {
-				device->destroyFramebuffer(frameBuffers[i]);
-			}
+        for (size_t i = 0; i < imageViews.size(); i++) {
+            if (frameBuffers[i]) {
+                device->destroyFramebuffer(frameBuffers[i]);
+            }
 
-			createInfo.pAttachments = &imageViews[i];
+            createInfo.pAttachments = &imageViews[i];
 
-			frameBuffers[i] = device->createFramebuffer(createInfo);
-		}
-	}
+            frameBuffers[i] = device->createFramebuffer(createInfo);
+        }
+    }
 
 };
 

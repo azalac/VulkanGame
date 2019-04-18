@@ -1,0 +1,45 @@
+---
+references:
+    - "glob.yml"
+    - "world.yml"
+
+materials:
+    base:
+        # any prototype can extend any other prototype (assuming types are equal)
+        # the properties here overrides game object's properties
+        extends: "game object"
+        ubos:
+            - {name: "green chroma key", binding: 0}
+        textures:
+            - {file: "sprites/ShipBase.bmp", binding: 1}
+            
+    detail:
+        extends: "game object"
+        ubos:
+            - {name: "green chroma key", binding: 0}
+        textures:
+            - {file: "sprites/ShipDetail.bmp", binding: 1}
+            
+    enemy:
+        extends: "game object"
+        ubos:
+            - {name: "blue chroma key", binding: 0}
+        textures:
+            - {file: "sprites/EnemyShip.bmp", binding: 1}
+
+game objects:
+    player:
+        extends: "base"
+        meshes:
+            - {material: "base", vertices: "sprite", indexes: "sprite"}
+            - {material: "detail", vertices: "sprite", indexes: "sprite"}
+        decorators:
+            - player controllable
+            - planet collider
+
+    enemy:
+        extends: "base"
+        meshes:
+            - {material: "enemy", vertices: "sprite", indexes: "sprite"}
+        decorators:
+            - ai controllable

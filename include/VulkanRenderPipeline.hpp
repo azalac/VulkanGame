@@ -12,6 +12,7 @@
 
 #include <vector>
 
+// Controls a vulkan render pipeline
 class VulkanPipeline {
 private:
 
@@ -52,6 +53,18 @@ private:
 class VulkanPipelineFactory {
 
 public:
+    
+    /**
+     * Creates a new vulkan pipeline with the given configuration
+     * @param device the owning device
+     * @param viewport The viewport to use
+     * @param renderPass The renderpass to render to
+     * @param sets The descriptor sets
+     * @param vertexInput The vertex input
+     * @param shaders The shaders
+     * @param pushConstants The push constants
+     * @return A vulkan pipeline
+     */
     static VulkanPipeline * create(VulkanDevice & device, VulkanViewport & viewport,
 			VulkanRenderPass & renderPass, std::vector<vk::DescriptorSetLayout> & sets,
             VulkanVertexInputState & vertexInput,

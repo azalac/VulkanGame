@@ -17,14 +17,13 @@
 #include "Window.hpp"
 
 const std::vector<std::string> validationLayers = {
-    //"VK_LAYER_LUNARG_standard_validation"
-	//,"VK_LAYER_RENDERDOC_Capture"
 };
 
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
+// Controls vulkan's validation layers
 class VulkanValidation {
 private:
 
@@ -86,6 +85,7 @@ private:
 
 };
 
+// Controls a vulkan loader instance
 class VulkanInstance {
 private:
 
@@ -174,9 +174,9 @@ private:
             throw std::runtime_error("Could not create Vulkan instance");
         }
 
-		if (requestValidationLayers && layers.size() > 0) {
-			initializeDebugMessenger();
-		}
+        if (requestValidationLayers && layers.size() > 0) {
+            initializeDebugMessenger();
+        }
     }
 
     void checkExtensionSupport(std::vector<const char*> & extensions) {

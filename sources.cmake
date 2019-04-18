@@ -18,10 +18,15 @@ list(APPEND HEADER_FILES
 "include/VulkanBuffer.hpp"
 "include/VulkanController.hpp"
 "include/game/scene.hpp"
-"include/game/ObjectController.hpp"
-"include/game/Collision.hpp"
-"include/game/RigidBody.hpp"
-"include/game/Menu.hpp")
+"include/game/ObjectControllers.hpp"
+"include/game/Menu.hpp"
+"include/game/SceneControllers.hpp"
+"include/game/ShipControllers.hpp"
+"include/game/ScoreControllers.hpp"
+"include/game/ControllerHelpers.hpp"
+"include/game/SoundSystem.hpp"
+#"include/game/parsing/GameContext.hpp"
+)
 
 list(APPEND SOURCE_FILES
 "src/Window.cpp"
@@ -34,4 +39,6 @@ list(APPEND SOURCE_FILES
 "src/helpers/VulkanDescriptor.cpp"
 "src/helpers/VulkanSingleCommand.cpp"
 "src/helpers/VulkanDepthBuffer.cpp"
-"src/helpers/VulkanImage.cpp")
+"src/helpers/VulkanImage.cpp"
+#"src/helpers/GameContext.cpp"
+)

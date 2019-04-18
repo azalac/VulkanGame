@@ -26,6 +26,7 @@
 
 #include "VulkanImage.hpp"
 
+// Controls the initialization and deinitialization of various vulkan objects
 class VulkanController : public MaterialRendererBuilder {
 private:
 
@@ -40,9 +41,9 @@ private:
     VulkanViewport * viewport;
     VulkanScreenBufferController * screenController;
 
-	ImageManager * images;
+    ImageManager * images;
 
-	vk::Fence acquire_fence;
+    vk::Fence acquire_fence;
     vk::CommandBuffer pBuffer;
 
 public:
@@ -55,41 +56,43 @@ public:
 
         device = new VulkanDevice(*instance, wnd);
 
-		cmdpool = new VulkanCommandBufferPool(*device);
+        cmdpool = new VulkanCommandBufferPool(*device);
 
-		queue = new VulkanQueue(*device);
+        queue = new VulkanQueue(*device);
 
-		depthBuffer = new VulkanDepthBuffer(*device, *viewport);
+        depthBuffer = new VulkanDepthBuffer(*device, *viewport);
 
-		renderPass = new VulkanRenderPass(*device, *depthBuffer);
+        renderPass = new VulkanRenderPass(*device, *depthBuffer);
 
         swapchain = new VulkanSwapchain(*device, *viewport, *renderPass);
 
         screenController = new VulkanScreenBufferController(*device, *swapchain);
 
-		images = new ImageManager(device, cmdpool, queue);
+        images = new ImageManager(device, cmdpool, queue);
 
-		pBuffer = cmdpool->create(vk::CommandBufferLevel::ePrimary);
+        pBuffer = cmdpool->create(vk::CommandBufferLevel::ePrimary);
 
-		acquire_fence = (*device)->createFence(vk::FenceCreateInfo());
+        acquire_fence = (*device)->createFence(vk::FenceCreateInfo());
     }
 
     VulkanController(const VulkanController& other) = delete;
 
     virtual ~VulkanController() {
-		(*device)->destroyFence(acquire_fence);
-		(*device)->freeCommandBuffers(*cmdpool, { pBuffer });
+        (*device)->destroyFence(acquire_fence);
+        (*device)->freeCommandBuffers(*cmdpool,{pBuffer});
         delete queue;
         delete cmdpool;
         delete depthBuffer;
-		delete swapchain;
-		delete renderPass;
+        delete swapchain;
+        delete renderPass;
         delete device;
         delete instance;
     }
 
     void recreateSwapchain(void) {
         // recreate the data without touching the pointers
+
+        (*device)->waitIdle();
 
         viewport->reload(*window);
 
@@ -106,60 +109,67 @@ public:
         return device;
     }
 
-	VulkanViewport * getViewport(void) {
-		return viewport;
-	}
+    VulkanViewport * getViewport(void) {
+        return viewport;
+    }
 
-	ImageManager * getImageManager(void) {
-		return images;
-	}
+    ImageManager * getImageManager(void) {
+        return images;
+    }
 
-	VulkanSwapchain * getSwapchain(void) {
-		return swapchain;
-	}
+    VulkanSwapchain * getSwapchain(void) {
+        return swapchain;
+    }
 
-	VulkanRenderPass * getRenderPass(void) {
-		return renderPass;
-	}
+    VulkanRenderPass * getRenderPass(void) {
+        return renderPass;
+    }
 
-	VulkanQueue * getQueue(void) {
-		return queue;
-	}
+    VulkanQueue * getQueue(void) {
+        return queue;
+    }
 
-	VulkanCommandBufferPool * getBufferPool(void) {
-		return cmdpool;
-	}
+    VulkanCommandBufferPool * getBufferPool(void) {
+        return cmdpool;
+    }
 
-	size_t getFrameIndex(void) {
-		return screenController->currentIndex();
-	}
+    size_t getFrameIndex(void) {
+        return screenController->currentIndex();
+    }
 
-	Material * createMaterial(MaterialPrototype & prototype, UBOMap * globals = nullptr) {
-		return new Material(*device, prototype, *viewport, *renderPass, *queue, globals);
-	}
+    Material * createMaterial(MaterialPrototype & prototype, UBOMap * globals = nullptr) {
+        return new Material(*device, prototype, *viewport, *renderPass, *queue, globals);
+    }
 
-	virtual MaterialRenderer * createRenderer(Material * material, VulkanIndexBuffer * indexbuffer = nullptr) override {
-		return new MaterialRenderer(swapchain, renderPass, queue, cmdpool, viewport, material, indexbuffer);
-	}
+    virtual MaterialRenderer * createRenderer(Material * material, VulkanIndexBuffer * indexbuffer = nullptr) override {
+        return new MaterialRenderer(swapchain, renderPass, queue, cmdpool, viewport, material, indexbuffer);
+    }
 
-	void startRender(void) {
+    /**
+     * Acquires the next image
+     */
+    void startRender(void) {
 
-		(*device)->resetFences({ acquire_fence });
+        (*device)->resetFences({acquire_fence});
 
-		if (!screenController->acquireImage(acquire_fence)) {
-			printf("Warning: no image acquired");
-			return;
-		}
+        if (!screenController->acquireImage(acquire_fence)) {
+            printf("Warning: no image acquired");
+            return;
+        }
 
-		(*device)->waitForFences({ acquire_fence }, true, std::numeric_limits<uint64_t>::max());
+        (*device)->waitForFences({acquire_fence}, true, std::numeric_limits<uint64_t>::max());
 
-	}
+    }
 
+    /**
+     * Submits a list of secondary buffers to be drawn
+     * @param secondaries The list of secondary buffers
+     */
     void submitSecondaries(std::vector<vk::CommandBuffer> & secondaries) {
 
-		pBuffer.reset(vk::CommandBufferResetFlags());
+        pBuffer.reset(vk::CommandBufferResetFlags());
 
-		pBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+        pBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
         vk::ClearValue cclear;
 
@@ -167,13 +177,13 @@ public:
 
         vk::RenderPassBeginInfo info(renderPass->getRenderPass(), swapchain->getFrame(getFrameIndex()), viewport->getScissor(), 1, &cclear);
 
-		pBuffer.beginRenderPass(info, vk::SubpassContents::eSecondaryCommandBuffers);
+        pBuffer.beginRenderPass(info, vk::SubpassContents::eSecondaryCommandBuffers);
 
-		pBuffer.executeCommands(secondaries.size(), secondaries.data());
-        
-		pBuffer.endRenderPass();
+        pBuffer.executeCommands(secondaries.size(), secondaries.data());
 
-		pBuffer.end();
+        pBuffer.endRenderPass();
+
+        pBuffer.end();
 
         screenController->queueDraw(*queue, pBuffer);
     }

@@ -21,13 +21,8 @@
 
 #include <mutex>
 
-enum class FrameState {
-    AQUIRING,
-    RECORDING,
-    DRAWING,
-    IDLE
-};
-
+// Controls the direct screen buffer manipulation
+// Does not control the command buffer recording
 class VulkanScreenBufferController {
 private:
     vk::ClearValue clearValue;
@@ -37,7 +32,6 @@ private:
     public:
         vk::Semaphore renderFinished, imageAvailable;
         vk::Fence fence;
-        FrameState state;
         size_t index;
         std::mutex mutex;
 
@@ -45,7 +39,6 @@ private:
             renderFinished = device->createSemaphore(vk::SemaphoreCreateInfo());
             imageAvailable = device->createSemaphore(vk::SemaphoreCreateInfo());
             fence = device->createFence(vk::FenceCreateInfo());
-            state = FrameState::IDLE;
             index = frame;
         }
     };
@@ -70,8 +63,6 @@ public:
 
         clearValue.color = clearColor;
 
-        vk::SemaphoreCreateInfo semaInfo;
-
         maxFrames = nframes < 1 ? swapchain.frameCount() : nframes;
 
         for (size_t i = 0; i < maxFrames; i++) {
@@ -88,6 +79,11 @@ public:
         return frameIndex;
     }
 
+    /**
+     * Acquires the next image from the swapchain
+     * @param fence The fence to use
+     * @return Whether the acquire was sucessful or not
+     */
     bool acquireImage(vk::Fence fence) {
 
         try {
@@ -100,6 +96,13 @@ public:
         return true;
     }
 
+    /**
+     * Submits a command buffer for execution
+     * @param queue The queue to submit on
+     * @param buffer The buffer to submit
+     * @param fence The fence to wait for
+     * @return Whether the submit was successful or not
+     */
     bool submit(VulkanQueue & queue, vk::CommandBuffer buffer, vk::Fence fence) {
         vk::SubmitInfo submitInfo;
 
@@ -118,6 +121,11 @@ public:
         return queue.graphicsSubmit(submitInfo, fence) == vk::Result::eSuccess;
     }
 
+    /**
+     * Presents the most recently acquired frame
+     * @param queue The queue to submit on
+     * @return Whether the present was successful or not
+     */
     bool present(VulkanQueue & queue) {
         vk::PresentInfoKHR presentInfo;
 
@@ -142,6 +150,15 @@ public:
         }
     }
 
+    /**
+     * Controls the above three methods and wraps queueing in a simple to use
+     * interface
+     * @param queue The queue to submit on
+     * @param buffer The buffer to submit
+     * @param blocking Whether the method should wait for the render to finish
+     *      or not
+     * @return Whether everything was successful or not
+     */
     bool queueDraw(VulkanQueue & queue, vk::CommandBuffer buffer, bool blocking = true) {
 
         device->resetFences({frames[frameIndex]->fence});
@@ -165,6 +182,7 @@ public:
 
 };
 
+// Controls a secondary command buffer for recording a material.
 class MaterialRenderer {
 private:
     VulkanQueue * queue;
@@ -211,6 +229,10 @@ public:
         this->indexBuffer = indexBuffer;
     }
 
+    /**
+     * Checks for updates in the descriptor set
+     * @param frame The current frame
+     */
     void checkForUpdates(size_t frame) {
         material->checkForUpdates(true);
 
@@ -228,6 +250,10 @@ public:
 
     }
 
+    /**
+     * Records a specific frame
+     * @param frame The frame to record
+     */
     void recordFrame(size_t frame) {
         if (this->indexBuffer == nullptr) {
             throw std::runtime_error("Index Buffer cannot be null");
@@ -273,6 +299,7 @@ public:
 
 };
 
+// An interface which builds a material renderer
 class MaterialRendererBuilder {
 public:
 

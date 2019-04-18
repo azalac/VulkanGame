@@ -1,0 +1,63 @@
+## YAML Template.
+---
+references:
+    - "glob.yml"
+    - "world.yml"
+
+materials:
+    planet1:
+        extends: "game object"
+        ubos:
+            - {global: "green chroma key", binding: 0}
+        textures:
+            - {file: "sprites/Planet1.bmp", binding: 1}
+            
+    planet2:
+        extends: "game object"
+        ubos:
+            - {global: "green chroma key", binding: 0}
+        textures:
+            - {file: "sprites/Planet2.bmp", binding: 1}
+            
+    planet3:
+        extends: "game object"
+        ubos:
+            - {global: "green chroma key", binding: 0}
+        textures:
+            - {file: "sprites/Planet3.bmp", binding: 1}
+            
+    background:
+        extends: "game object"
+        ubos:
+            - {global: "green chroma key", binding: 0}
+        textures:
+            - {file: "sprites/SectorBackground.bmp", binding: 1}
+
+game objects:
+    planet1:
+        extends: "base"
+        meshes:
+            - {material: "planet1", vertices: "sprite", indexes: "sprite"}
+        decorators:
+            - rotating: {type: "random", range: "@planet speed range"}
+            
+    planet2:
+        extends: "base"
+        meshes:
+            - {material: "planet2", vertices: "sprite", indexes: "sprite"}
+        decorators:
+            - rotating: {type: "random", range: "@planet speed range"}
+            
+    planet2:
+        extends: "base"
+        meshes:
+            - {material: "planet2", vertices: "sprite", indexes: "sprite"}
+        decorators:
+            - rotating: {type: "random", range: "@planet speed range"}
+            
+    background:
+        extends: "base"
+        meshes:
+            - {material: "background", vertices: "sprite", indexes: "sprite"}
+        size: [2.0, 2.0]
+        position: [-1.0, -1.0]

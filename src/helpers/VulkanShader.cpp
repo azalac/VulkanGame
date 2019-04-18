@@ -11,9 +11,8 @@
 
 VulkanShader::VulkanShader(VulkanDevice & device, const std::string & filename,
         vk::ShaderStageFlagBits type, const std::string shader_name) :
-name(shader_name), type(type) {
+name(shader_name), type(type), data(LoadShader(filename)) {
 
-    this->data = LoadShader(filename);
     init(device, data.data(), data.size() * sizeof(uint32_t));
 }
 
@@ -63,7 +62,7 @@ std::vector<uint32_t> VulkanShader::LoadShader(const std::string & filename) {
     char * buffer = new char[size];
     
     if (!file.read(buffer, size)) {
-        delete buffer;
+        delete[] buffer;
         throw std::runtime_error("Could not load file");
     }
 

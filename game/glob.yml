@@ -1,0 +1,132 @@
+## YAML Template.
+---
+references:
+    - world.yml
+
+ubo prototypes:
+    # a ubo prototype restricts the values a ubo instance can have
+    - chroma key:
+        count: 1
+        fields:
+            - search:
+                type: "float"
+                count: 4
+            - replace:
+                type: "float"
+                count: 4
+            - epsilon1: "float"
+            - epsilon2: "float"
+
+ubo instances:
+    # ubo instances are implementations of a prototype with specific values
+    # the values cannot be changed at runtime
+    - green chroma key:
+        prototype: "chroma key"
+        values:
+            - search: [0.0, 1.0, 0.0, 1.0]
+            - replace: [0.0, 0.0, 0.0, 0.0]
+            - epsilon1: 0.25
+            - epsilon2: 0.75
+    - blue chroma key:
+        prototype: "chroma key"
+        values:
+            - search: [0.0, 0.0, 1.0, 1.0]
+            - replace: [0.0, 0.0, 0.0, 0.0]
+            - epsilon1: 0.25
+            - epsilon2: 0.75
+
+vertex buffers:
+    # a vertex buffer is an instance of a VulkanVertexBufferDefault with the
+    # provided arguments for each vertex
+    - sprite:
+        -
+            uv: [1.0, 0.0]
+            position: [-0.5, -0.5]
+        -
+            uv: [0.0, 0.0]
+            position: [0.5, -0.5]
+        -
+            uv: [0.0, 1.0]
+            position: [0.5, 0.5]
+        -
+            uv: [1.0, 1.0]
+            position: [-0.5, 0.5]
+
+index buffers:
+    # an index buffer is a VulkanIndexBuffer
+    - sprite: [0, 1, 2, 3, 2, 0]
+
+push constants:
+    - game object:
+        fields:
+            - position: {type: "float", count: 2}
+            - size: {type: "float", count: 2}
+            - rotation: "float"
+            - aspect: {type: "float", count: 2}
+        stages:
+            - vertex
+
+shaders:
+    # translates the input coordinates based on the game object push constants
+    - game object vertex:
+        file: "shader/shader.vert.spv"
+        stage: vertex
+        push constants:
+            # accepts the game object push constant
+            - game object
+            
+    # samples the input texture
+    - passthrough fragment:
+        file: "shader/shader.frag.spv"
+        stage: fragment
+        textures:
+            - {binding: 1}
+        
+    # applies a chroma key effect to the input texture
+    - chroma key fragment:
+        file: "shader/chromakey.frag.spv"
+        stage: fragment
+        textures:
+            - {binding: 1}
+        ubos:
+            - {prototype: "chroma key", binding: 0}
+            
+    # applies a chroma key and a 'planet shadow' effect to the input texture
+    - sphere fragment:
+        file: "shader/sphere.frag.spv"
+        stage: fragment
+        textures:
+            - {binding: 1}
+        ubos:
+            - {prototype: "chroma key", binding: 0}
+
+materials:
+    - game object:
+        fragment: "chroma key fragment"
+        vertex: "game object vertex"
+        push constants:
+            - "game object"
+        # these must be defined in actual materials:
+        # ubos: ["blue/green chroma key"]
+        # textures: {file: "...", binding: 1}
+
+game objects:
+    base:
+        properties:
+            position: [0.0, 0.0]
+            size: "@cell size"
+            rotation: 0.0
+        # maps a property to a game object value when drawing this object
+        push constant bindings:
+            -
+                property: "position"
+                push constant: "game object"
+                field: "position"
+            -
+                property: "size"
+                push constant: "game object"
+                field: "position"
+            -
+                property: "rotation"
+                push constant: "game object"
+                field: "position"

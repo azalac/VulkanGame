@@ -6,6 +6,8 @@
 
 #include <vector>
 
+// Represents a vulkan command buffer
+// Can be allocated or deallocated depending on the current buffer groups
 class VulkanCommandBuffer {
 private:
 
@@ -35,6 +37,7 @@ public:
 
 };
 
+// Represents multiple command buffers
 class VulkanCommandBufferGroup {
 private:
 
@@ -64,6 +67,8 @@ public:
     }
 };
 
+// Represents a buffer pool
+// Can allocate command buffers and groups
 class VulkanCommandBufferPool {
 private:
 

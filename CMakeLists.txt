@@ -2,17 +2,16 @@ cmake_minimum_required(VERSION 3.0)
 
 project("Vulkan Test")
 
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 14)
 set(CMAKE_BUILD_TYPE Debug)
 
 option(USE_INSTALLED_VKSDK "Use Installed Vulkan SDK" OFF)
-option(USE_DYNAMIC_GLFW "Use GLFW DLL and Loader" OFF)
 
 # enables debug symbols
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi")
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall -std=c++1y")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall -std=c++1y -lstdc++fs")
 endif()
 
 if(DEFINED ENV{VULKAN_SDK})
@@ -32,11 +31,17 @@ endif()
 set(VULKAN_INCLUDE "${VULKAN_SDK}/Include")
 set(VULKAN_BINARIES "${VULKAN_SDK}/Lib32")
 
-set(GLFW_INCLUDE "D:/Program Files (x86)/GLFW/include")
-set(GLFW_BINARIES "D:/Program Files (x86)/GLFW/lib")
+set(GLFW_INCLUDE "${CMAKE_SOURCE_DIR}/glfw/include")
+set(GLFW_BINARIES "${CMAKE_SOURCE_DIR}/lib")
 
-set(TXML_INCLUDE "${CMAKE_SOURCE_DIR}/tinyxml2/")
-set(TXML_BINARIES "${CMAKE_SOURCE_DIR}/tinyxml2/build/Debug")
+set(YAML_INCLUDE "${CMAKE_SOURCE_DIR}/yaml-cpp/include")
+set(YAML_BINARIES "${CMAKE_SOURCE_DIR}/lib")
+
+set(YAML_INCLUDE "${CMAKE_SOURCE_DIR}/yaml-cpp/include")
+set(YAML_BINARIES "${CMAKE_SOURCE_DIR}/lib")
+
+set(IRRKLANG_INCLUDE "${CMAKE_SOURCE_DIR}/irrklang/include")
+set(IRRKLANG_BINARIES "${CMAKE_SOURCE_DIR}/lib/irrklang")
 
 set(GLM_INCLUDE "${CMAKE_SOURCE_DIR}/glm")
 
@@ -52,6 +57,7 @@ target_include_directories(vulkan_test PUBLIC "${CMAKE_SOURCE_DIR}/include")
 
 
 include(CheckIncludeFile)
+include(CheckIncludeFileCXX)
 
 if(UNIX)
     include_directories("/usr/local/include")
@@ -59,27 +65,30 @@ endif()
 
 ###### GLFW LIBRARIES + HEADERS
 
-add_library(glfw3 STATIC IMPORTED)
-
-if(${USE_DYNAMIC_GLFW})
-	list(APPEND GLFW_LIBRARY_NAMES "libglfw3" "glfw3dll" "libglfw")
-else()
-	list(APPEND GLFW_LIBRARY_NAMES "glfw3")
-endif()
+list(APPEND GLFW_LIBRARY_NAMES "libglfw3" "glfw3" "libglfw" "glfw" "glfw3dll.lib")
 
 find_library(GLFW_LIBRARY NAMES ${GLFW_LIBRARY_NAMES} HINTS ${GLFW_BINARIES})
 
-if(NOT GLFW_LIBRARY)
-	message(FATAL_ERROR "GLFW library not installed and GLFW_BINARIES not specified!")
-endif()
+get_filename_component(glfw_static "${GLFW_LIBRARY}" NAME)
 
-get_filename_component(glfw_static ${GLFW_LIBRARY} NAME)
+get_filename_component(glfw_ext "${GLFW_LIBRARY}" EXT)
 
-# when linking to the loader, copy its glfw3.dll to the binary location
+# when linking to the loader, copy glfw3.dll to the binary location
 if("${glfw_static}" STREQUAL "glfw3dll.lib")
 	add_custom_command(TARGET vulkan_test POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy "${GLFW_BINARIES}/glfw3.dll" "$<TARGET_FILE_DIR:vulkan_test>"
 	)
+endif()
+
+if("${glfw_ext}" STREQUAL ".so")
+	add_library(glfw3 SHARED IMPORTED)
+else()
+	add_library(glfw3 STATIC IMPORTED)
+endif()
+
+
+if(NOT GLFW_LIBRARY)
+	message(FATAL_ERROR "GLFW library not installed and GLFW_BINARIES not specified!")
 endif()
 
 set_property(TARGET glfw3 PROPERTY IMPORTED_LOCATION "${GLFW_LIBRARY}")
@@ -123,41 +132,93 @@ if(NOT VULKAN_HEADER)
     endif()
 endif()
 
-###### TINYXML2 LIBRARIES + HEADERS
+###### YAML CPP LIBRARIES + HEADERS
 
-if(FALSE)
-add_library(tinyxml2 STATIC IMPORTED)
+add_library(yamlcpp STATIC IMPORTED)
 
-find_library(TXML_LIBRARY NAMES tinyxml2d libtinyxml2d)
+find_library(YAML_LIBRARY NAMES "yaml-cpp" "libyaml-cpp" "yaml-cppmdd" "libyaml-cppmdd" HINTS ${YAML_BINARIES})
 
-if(NOT TXML_LIBRARY)
-    if(TXML_BINARIES)
-		set(TXML_LIBRARY "${TXML_BINARIES}/tinyxml2d.lib")
-		message("Installed tinyxml2 not found, using provided binaries")
+if(NOT YAML_LIBRARY)
+    message(FATAL_ERROR "yaml-cpp static library not found - must be installed")
+endif()
+
+
+set_property(TARGET yamlcpp PROPERTY IMPORTED_LOCATION "${YAML_LIBRARY}")
+
+check_include_file("yaml-cpp/yaml.h" YAML_HEADER)
+
+if(NOT YAML_HEADER)
+    if(YAML_INCLUDE)
+		target_include_directories(vulkan_test SYSTEM PUBLIC "${YAML_INCLUDE}")
+		message("Installed yaml-cpp not found, using provided headers")
     else()
-		message(FATAL_ERROR "tinyxml2 not installed and TXML_BINARIES not specified!")
+		message(FATAL_ERROR "yaml-cpp headers not installed and YAML_INCLUDE not specified!")
     endif()
 endif()
 
-set_property(TARGET tinyxml2 PROPERTY IMPORTED_LOCATION "${TXML_LIBRARY}")
+###### IRRLKANG LIBRARIES + headers
+
+if(UNIX)
+
+	find_library(ILK_LIBRARY "IrrKlang" HINTS "${IRRKLANG_BINARIES}")
+	find_library(ILK_FLAC "ikpFlac" HINTS "${IRRKLANG_BINARIES}")
+	find_library(ILK_MP3 "ikpMP3" HINTS "${IRRKLANG_BINARIES}")
+
+	if(NOT ILK_LIBRARY OR NOT ILK_FLAC OR NOT ILK_MP3 )
+		message(FATAL_ERROR "Could not find irrKlang libraries!")
+	endif()
+
+	# always copy the loaders to the binary location
+	add_custom_command(TARGET vulkan_test POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy "${ILK_FLAC}" "$<TARGET_FILE_DIR:vulkan_test>"
+		COMMAND ${CMAKE_COMMAND} -E copy "${ILK_MP3}" "$<TARGET_FILE_DIR:vulkan_test>"
+	)
+
+	message(${ILK_LIBRARY} ${ILK_FLAC} ${ILK_MP3})
+
+	add_library(irrklang SHARED IMPORTED)
+	set_property(TARGET irrklang PROPERTY IMPORTED_LOCATION "${ILK_LIBRARY}")
+
+else()
+
+	find_library(ILK_LIBRARY "irrKlang" HINTS "${IRRKLANG_BINARIES}")
+	find_file(ILK_DYN "irrKlang.dll" HINTS "${IRRKLANG_BINARIES}")
+	find_file(ILK_FLAC "ikpFlac.dll" HINTS "${IRRKLANG_BINARIES}")
+	find_file(ILK_MP3 "ikpMP3.dll" HINTS "${IRRKLANG_BINARIES}")
+
+	if(NOT ILK_LIBRARY OR NOT ILK_FLAC OR NOT ILK_MP3 OR NOT ILK_DYN)
+		message(FATAL_ERROR "Could not find irrKlang libraries!")
+	endif()
+
+	# always copy the loaders to the binary location
+	add_custom_command(TARGET vulkan_test POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy "${ILK_FLAC}" "$<TARGET_FILE_DIR:vulkan_test>"
+		COMMAND ${CMAKE_COMMAND} -E copy "${ILK_MP3}" "$<TARGET_FILE_DIR:vulkan_test>"
+		COMMAND ${CMAKE_COMMAND} -E copy "${ILK_DYN}" "$<TARGET_FILE_DIR:vulkan_test>"
+	)
+
+	add_library(irrklang STATIC IMPORTED)
+	set_property(TARGET irrklang PROPERTY IMPORTED_LOCATION "${ILK_LIBRARY}")
+
+endif()
 
 
+check_include_file("irrklang/irrKlang.h" ILK_HEADER)
 
-check_include_file("tinyxml2.h" TXML_HEADER)
-
-if(NOT TXML_HEADER)
-    if(TXML_INCLUDE)
-		target_include_directories(vulkan_test SYSTEM PUBLIC "${TXML_INCLUDE}")
-		message("Installed tinyxml2 not found, using provided headers")
+if(NOT ILK_HEADER)
+    if(IRRKLANG_INCLUDE)
+		target_include_directories(vulkan_test SYSTEM PUBLIC "${IRRKLANG_INCLUDE}")
+		message("Installed irrKlang not found, using provided headers")
     else()
-		message(FATAL_ERROR "tinyxml2 not installed and TXML_INCLUDE not specified!")
+		message(FATAL_ERROR "irrKlang headers not installed and IRRKLANG_INCLUDE not specified!")
     endif()
 endif()
-endif()
+
+
 
 ###### GLM HEADERS
 
-check_include_file("glm/glm.hpp" GLM_HEADER)
+check_include_file_cxx("glm/glm.hpp" GLM_HEADER)
 
 if(NOT GLM_HEADER)
     if(GLM_INCLUDE)
@@ -186,7 +247,8 @@ endif()
 #add the required libraries
 target_link_libraries(vulkan_test PUBLIC vulkan)
 target_link_libraries(vulkan_test PUBLIC glfw3)
-#target_link_libraries(vulkan_test PUBLIC tinyxml2)
+target_link_libraries(vulkan_test PUBLIC yamlcpp)
+target_link_libraries(vulkan_test PUBLIC irrklang)
 
 
 
@@ -229,6 +291,7 @@ endforeach(GLSL)
 add_custom_target(
     Shaders 
     DEPENDS ${SPIRV_BINARY_FILES}
+	SOURCES ${GLSL_SOURCE_FILES}
     )
 
 add_dependencies(vulkan_test Shaders)
@@ -242,10 +305,25 @@ add_custom_command(TARGET vulkan_test POST_BUILD
 
 
 #copies the sprites folder to the output
-
 add_custom_command(TARGET vulkan_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vulkan_test>/sprites/"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/sprites"
         "$<TARGET_FILE_DIR:vulkan_test>/sprites"
+)
+
+#copies the game folder to the output
+add_custom_command(TARGET vulkan_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vulkan_test>/game/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/game"
+        "$<TARGET_FILE_DIR:vulkan_test>/game"
+)
+
+#copies the sounds folder to the output
+add_custom_command(TARGET vulkan_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vulkan_test>/sounds/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/sounds"
+        "$<TARGET_FILE_DIR:vulkan_test>/sounds"
 )

@@ -7,6 +7,12 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_STATIC
+#include <stb_image_write.h>
+
+#include <cctype>
+
 #include "VulkanImage.hpp"
 #include "VulkanCommandBuffer.hpp"
 #include "VulkanSingleCommand.hpp"
@@ -19,14 +25,12 @@ device(device) {
     createImageView();
 }
 
-Texture::Texture(VulkanDevice & device, unsigned char * buffer, int width, int height) :
-device(device) {
-	this->path = nullptr;
-	loadImageData(buffer, width, height);
-	createImage();
-	createImageView();
+Texture::Texture(VulkanDevice & device, unsigned char * buffer, int width, int height, int channels) :
+device(device), width(width), height(height), channels(channels) {
+    loadImageData(buffer, width, height);
+    createImage();
+    createImageView();
 }
-
 
 void Texture::configureLayouts(VulkanCommandBufferPool & pool, VulkanQueue & queue) {
     VulkanSingleCommand::changeImageLayout(device, pool, queue,
@@ -48,7 +52,7 @@ void Texture::loadImageData(std::string path) {
     if (!pixels) {
         throw std::runtime_error("Could not load image " + path);
     }
-
+    
     vk::DeviceSize imageSize = width * height * 4;
 
     device.createBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
@@ -65,23 +69,26 @@ void Texture::loadImageData(std::string path) {
 
 void Texture::loadImageData(unsigned char * buffer, int width, int height) {
 
-	if (!buffer) {
-		throw std::runtime_error("Buffer cannot be null");
-	}
+    if (!buffer) {
+        throw std::runtime_error("Buffer cannot be null");
+    }
 
-	vk::DeviceSize imageSize = width * height * 4;
+    vk::DeviceSize imageSize = width * height * 4;
 
-	device.createBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-		stagingBuffer, stagingMemory);
+    device.createBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+            stagingBuffer, stagingMemory);
 
-	void* data;
-	device->mapMemory(stagingMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
-	memcpy(data, buffer, static_cast<size_t> (imageSize));
-	device->unmapMemory(stagingMemory);
+    void* data;
+    device->mapMemory(stagingMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
+    
+    for(int i = 0; i < width * height; i++) {
+        memset(reinterpret_cast<unsigned char*>(data) + i * 4, 0xFF, 4);
+        memcpy(reinterpret_cast<unsigned char*>(data) + i * 4, buffer + i * channels, channels);
+    }
+    
+    device->unmapMemory(stagingMemory);
 }
-
-
 
 void Texture::createImage(void) {
     vk::ImageCreateInfo imageInfo;
@@ -174,8 +181,8 @@ image(image), device(device) {
 }
 
 void TextureSampler::setTexture(Texture const * image) {
-	this->image = image;
-	this->markNeedsUpdate();
+    this->image = image;
+    this->markNeedsUpdate();
 }
 
 void TextureSampler::update(void* data) {
@@ -200,84 +207,83 @@ void TextureSampler::update(void* data) {
     (*device)->updateDescriptorSets(1, &descWrite, 0, nullptr);
 }
 
-Font::Font(const char * filename, float size, int index) {
-	loadFontData(filename);
-
-	int nfonts = stbtt_GetNumberOfFonts(font_data.data());
-
-	if (nfonts == -1) {
-		throw std::runtime_error("Could not load font count");
-	}
-
-	if (nfonts == 0) {
-		throw std::runtime_error("Font file has no fonts");
-	}
-
-	if (index < 0 || index >= nfonts) {
-		throw std::out_of_range("Index is outside of valid index range");
-	}
-
-	stbtt_GetScaledFontVMetrics(font_data.data(), index, size, &ascent, &descent, &lineGap);
-	if (stbtt_InitFont(&font, font_data.data(), stbtt_GetFontOffsetForIndex(font_data.data(), index)) == 0) {
-		throw std::runtime_error("Could not load font");
-	}
-
-	scale = stbtt_ScaleForPixelHeight(&font, size);
-	baseline = ascent*scale;
-	height = (ascent - descent)*scale;
-
+Font::~Font() {
+    stbi_image_free(pixels);
 }
 
-std::vector<unsigned char> Font::RenderImage(char const * text, int * _width, int * _height) {
-	int width = 0;
+void Font::loadFontData(const char* filename, bool alpha) {
 
-	// calculate the image's width
-	for (char const * ptr = text; *ptr; ptr++) {
-		/* how wide is this character */
-		int ax;
-		stbtt_GetCodepointHMetrics(&font, *ptr, &ax, nullptr);
-		width += (int)(ax * scale);
+    pixels = stbi_load(filename, &width, &height, &channels, alpha ? STBI_rgb_alpha : STBI_rgb);
 
-		/* add kerning */
-		int kern;
-		kern = stbtt_GetCodepointKernAdvance(&font, *ptr, *(ptr + 1));
-		width += (int)(kern * scale);
-	}
+    if (!pixels) {
+        throw std::runtime_error("Could not load image " + std::string(filename));
+    }
 
-	std::vector<unsigned char> pixels((int)(width * height * 4));
+    int current_char = 0;
+    int current_index = 0;
 
-	// render the text to the image
-	int x = 0;
-	for (char const * ptr = text; *ptr; ptr++) {
-		/* get bounding box for character (may be offset to account for chars that dip above or below the line */
-		int c_x1, c_y1, c_x2, c_y2;
-		stbtt_GetCodepointBitmapBox(&font, *ptr, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
+    bool character_seen = false;
 
-		/* compute y (different characters have different heights */
-		int y = (int)(ascent + c_y1);
+    // for the top row, check every red channel.
+    // If the red channel isn't 255, the pixel is the start of a new character
+    for (int i = 0; i < width * channels; i++) {
 
-		/* render character (stride and offset is important here) */
-		int byteOffset = x + (y  * width);
-		stbtt_MakeCodepointBitmap(&font, &pixels[byteOffset], c_x2 - c_x1, c_y2 - c_y1, width, scale, scale, *ptr);
+        unsigned char chr = pixels[i] & 0xFF;
 
-		/* how wide is this character */
-		int ax;
-		stbtt_GetCodepointHMetrics(&font, *ptr, &ax, 0);
-		x += (int)(ax * scale);
+        if (chr != 0xFF && i % channels == 0) {
+            int index = i / channels;
 
-		/* add kerning */
-		int kern;
-		kern = stbtt_GetCodepointKernAdvance(&font, *ptr, *(ptr + 1));
-		x += (int)(kern * scale);
-	}
+            if (character_seen) {
+                characters.push_back(Character{current_char, current_index, index - current_index});
+            }
 
-	if (_width) {
-		*_width = width;
-	}
+            current_index = index;
+            current_char = chr;
+            character_seen = true;
+        }
+    }
+}
 
-	if (_height) {
-		*_height = (int)height;
-	}
+std::shared_ptr<unsigned char> Font::RenderImage(char const * text, int * _width, int * _height, int * _channels) {
+    int width = 0;
 
-	return pixels;
+    std::vector<struct Character*> chars;
+
+    // convert the string to the character vector and calculate the image width
+    for (char const * curr = text; *curr; curr++) {
+        try {
+            int c = std::tolower(*curr);
+            for (auto & ch : characters) {
+                if (ch.c == c) {
+                    width += ch.width;
+                    chars.push_back((&ch));
+                }
+            }
+        } catch (std::out_of_range) {
+            throw std::runtime_error("Unknown character '" + std::string(1, *curr) + "'");
+        }
+    }
+    
+    size_t n = width * (height - 1) * channels;
+    std::shared_ptr<unsigned char> pixels(new unsigned char[n]);
+
+    memset(pixels.get(), 0, n);
+
+    int x = 0;
+
+    for (auto & ch : chars) {
+        for (int i = 0; i < height-1; i++) {
+            unsigned char * src = &this->pixels[channels * (this->width * (i+1) + ch->xoffset)];
+            unsigned char * dst = &pixels.get()[channels * (width * i + x)];
+            memcpy(dst, src, channels * ch->width);
+        }
+
+        x += ch->width;
+    }
+
+    *_width = width;
+    *_height = height - 1;
+    *_channels = channels;
+
+    return pixels;
 }

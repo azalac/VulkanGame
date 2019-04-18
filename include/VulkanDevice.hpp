@@ -5,6 +5,8 @@
 #ifndef _VULKAN_DEVICE
 #define _VULKAN_DEVICE
 
+// Controls a vulkan device and configures the rendering surface
+
 class VulkanDevice {
 private:
     vk::SurfaceKHR surface;
@@ -61,10 +63,10 @@ public:
         return physical_device->getMemoryProperties();
     }
 
-    bool supportsAnisotropy(void)  {
+    bool supportsAnisotropy(void) {
         return physical_device->getFeatures().samplerAnisotropy;
     }
-    
+
     vk::Device const* operator->(void) const {
         return &logical_device;
     }
@@ -77,22 +79,22 @@ public:
         return logical_device;
     }
 
-	void printExtensions(void) {
-		auto extensions = physical_device->enumerateDeviceExtensionProperties();
-		for (auto & extension : extensions) {
-			std::cout << "EXTENSION (V" << extension.specVersion << ") " << extension.extensionName << std::endl;
-		}
-	}
+    void printExtensions(void) {
+        auto extensions = physical_device->enumerateDeviceExtensionProperties();
+        for (auto & extension : extensions) {
+            std::cout << "EXTENSION (V" << extension.specVersion << ") " << extension.extensionName << std::endl;
+        }
+    }
 
     void recreateSurface(VulkanInstance & instance, Window & wnd) {
         instance.getInstance()->destroySurfaceKHR(surface);
-        
+
         createSurface(instance, wnd);
-        
+
         findValidDeviceIndices(*physical_device, physical_device->getQueueFamilyProperties(),
                 vk::QueueFlagBits::eGraphics, &graphicsQueueFamilyIndex, &presentQueueFamilyIndex);
     }
-    
+
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
         vk::PhysicalDeviceMemoryProperties memProperties = physical_device->getMemoryProperties();
 
@@ -113,7 +115,7 @@ public:
         bufferInfo.sharingMode = vk::SharingMode::eExclusive;
 
         buffer = logical_device.createBuffer(bufferInfo);
-        
+
         vk::MemoryRequirements memRequirements = logical_device.getBufferMemoryRequirements(buffer);
 
         vk::MemoryAllocateInfo allocInfo;
@@ -121,7 +123,7 @@ public:
         allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
         bufferMemory = logical_device.allocateMemory(allocInfo);
-        
+
         logical_device.bindBufferMemory(buffer, bufferMemory, 0);
     }
 
@@ -285,6 +287,8 @@ private:
 
 };
 
+// Controls the present and graphics command queues
+
 class VulkanQueue {
 private:
 
@@ -305,7 +309,7 @@ public:
         graphics = device->getQueue(graphicsIndex, 0);
         present = device->getQueue(presentIndex, 0);
     }
-    
+
     vk::Result graphicsSubmit(vk::SubmitInfo & submitInfo, vk::Fence fence) {
         return graphics.submit(1, &submitInfo, fence);
     }
@@ -316,67 +320,68 @@ public:
 
 };
 
+// Controls the viewport information
 class VulkanViewport {
 private:
 
-	vk::PipelineViewportStateCreateInfo viewportState;
+    vk::PipelineViewportStateCreateInfo viewportState;
 
-	vk::Viewport view;
-	vk::Rect2D scissor;
+    vk::Viewport view;
+    vk::Rect2D scissor;
 
-	uint32_t width = 0, height = 0;
+    uint32_t width = 0, height = 0;
 
 public:
 
-	VulkanViewport(void) {
+    VulkanViewport(void) {
 
-	}
+    }
 
-	VulkanViewport(Window & wnd) {
-		reload(wnd);
-	}
+    VulkanViewport(Window & wnd) {
+        reload(wnd);
+    }
 
-	void reload(Window & wnd) {
+    void reload(Window & wnd) {
 
-		width = wnd.getWidth();
-		height = wnd.getHeight();
+        width = wnd.getWidth();
+        height = wnd.getHeight();
 
-		view.x = 0;
-		view.y = 0;
-		view.width = (float)width;
-		view.height = (float)height;
-		view.minDepth = 0;
-		view.maxDepth = 1;
+        view.x = 0;
+        view.y = 0;
+        view.width = (float) width;
+        view.height = (float) height;
+        view.minDepth = 0;
+        view.maxDepth = 1;
 
-		scissor.offset = vk::Offset2D(0, 0);
-		scissor.extent = vk::Extent2D(width, height);
+        scissor.offset = vk::Offset2D(0, 0);
+        scissor.extent = vk::Extent2D(width, height);
 
-		viewportState.viewportCount = 1;
-		viewportState.pViewports = &view;
-		viewportState.scissorCount = 1;
-		viewportState.pScissors = &scissor;
+        viewportState.viewportCount = 1;
+        viewportState.pViewports = &view;
+        viewportState.scissorCount = 1;
+        viewportState.pScissors = &scissor;
 
-	}
+    }
 
-	uint32_t getHeight() const {
-		return height;
-	}
+    uint32_t getHeight() const {
+        return height;
+    }
 
-	const vk::Viewport & getView() const {
-		return view;
-	}
+    const vk::Viewport & getView() const {
+        return view;
+    }
 
-	const vk::Rect2D & getScissor() const {
-		return scissor;
-	}
+    const vk::Rect2D & getScissor() const {
+        return scissor;
+    }
 
-	uint32_t getWidth() const {
-		return width;
-	}
+    uint32_t getWidth() const {
+        return width;
+    }
 
-	vk::PipelineViewportStateCreateInfo getViewportState(void) {
-		return viewportState;
-	}
+    vk::PipelineViewportStateCreateInfo getViewportState(void) {
+        return viewportState;
+    }
 };
 
 #endif /* _VULKAN_DEVICE */

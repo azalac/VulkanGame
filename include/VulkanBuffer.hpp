@@ -18,6 +18,8 @@
 
 #include <memory>
 
+// An object which holds a vulkan buffer and its memory
+
 class VulkanBufferHolder {
 protected:
     vk::Buffer buffer;
@@ -39,6 +41,8 @@ public:
     }
 };
 
+// An object which creates a vulkan buffer and its memory
+
 class VulkanBufferCreator : public VulkanBufferHolder {
 public:
 
@@ -49,6 +53,8 @@ public:
     }
 
 };
+
+// Represents an updatable resource
 
 class VulkanUpdatable {
 private:
@@ -65,27 +71,29 @@ public:
         objectDirty = false;
     }
 
-    void markNeedsUpdate(void) {
+    virtual void markNeedsUpdate(void) {
         objectDirty = true;
     }
 
     virtual void update(void* data) = 0;
 
     virtual bool modifiesData(void) = 0;
-    
+
 };
 
-class VulkanBuffer : public VulkanUpdatable{
+// Controls a vulkan buffer
+
+class VulkanBuffer : public VulkanUpdatable {
 private:
 
     std::unique_ptr<VulkanBufferHolder> holder;
-    
+
 public:
 
     VulkanBuffer(VulkanDevice * device, int size, vk::BufferUsageFlags usage,
             vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible |
-            vk::MemoryPropertyFlagBits::eHostCoherent):
-        holder(new VulkanBufferCreator(device, size, usage, memoryProperties)) {
+            vk::MemoryPropertyFlagBits::eHostCoherent) :
+    holder(new VulkanBufferCreator(device, size, usage, memoryProperties)) {
 
         this->device = device;
 
@@ -94,8 +102,8 @@ public:
 
     }
 
-    VulkanBuffer(vk::Buffer buffer, VulkanDevice * device = nullptr, vk::DeviceMemory memory = nullptr):
-    holder(new VulkanBufferHolder(buffer, memory)){
+    VulkanBuffer(vk::Buffer buffer, VulkanDevice * device = nullptr, vk::DeviceMemory memory = nullptr) :
+    holder(new VulkanBufferHolder(buffer, memory)) {
 
         this->device = device;
 
@@ -117,7 +125,7 @@ public:
     virtual bool modifiesData(void) {
         return true;
     }
-    
+
     vk::Buffer getBuffer(void) {
         return holder->getBuffer();
     }
@@ -168,6 +176,8 @@ protected:
 
 };
 
+// Represents a buffer stores a specific type of object
+
 template<typename T>
 class VulkanObjectBuffer : public VulkanBuffer {
 protected:
@@ -192,6 +202,7 @@ public:
 
 };
 
+// Controls updatable resources
 class VulkanUpdateManager {
 private:
 
@@ -213,13 +224,13 @@ public:
     bool updateIfNecessary(void * data) {
         bool updated = false;
 
-		for (auto & obj : objects) {
-			updated = updated || (obj->needsUpdate() && obj->modifiesData());
-		}
+        for (auto & obj : objects) {
+            updated = updated || (obj->needsUpdate() && obj->modifiesData());
+        }
 
-		if (!updated) {
-			return false;
-		}
+        if (!updated) {
+            return false;
+        }
 
         for (auto obj : objects) {
             if (obj->needsUpdate()) {
@@ -231,17 +242,6 @@ public:
         return true;
     }
 
-};
-
-struct VulkanUpdateContext {
-	const int type = 0xF0F;
-	vk::DescriptorSet context;
-	std::vector<vk::WriteDescriptorSet> writes;
-	std::vector<vk::WriteDescriptorSet> copies;
-
-	static bool IsValidContext(void * ptr) {
-		return *(int*)ptr == 0xF0F;
-	}
 };
 
 #endif /* VULKANBUFFER_HPP */

@@ -19,6 +19,7 @@
 
 #include <vector>
 
+// Controls a render pass and its attachments
 class VulkanRenderPass {
 private:
 
